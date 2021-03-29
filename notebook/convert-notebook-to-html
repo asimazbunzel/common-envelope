@@ -1,0 +1,6 @@
+#!/bin/bash
+
+source /opt/conda/etc/profile.d/conda.sh
+conda activate bin2dco-3.9
+
+jupyter-nbconvert CE\ comparison.ipynb --execute --to html --template=template/ --no-prompt --output-dir=../ --output=index.html
