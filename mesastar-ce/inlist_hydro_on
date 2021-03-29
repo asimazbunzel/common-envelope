@@ -1,0 +1,34 @@
+
+&star_job
+
+/ !end of star_job namelist
+
+
+&controls
+
+   terminal_show_age_units = 'days'
+
+   use_ODE_var_eqn_pairing = .true.      
+   use_dPrad_dm_form_of_T_gradient_eqn = .true.
+   use_dedt_form_of_energy_eqn = .true.
+   use_compression_outer_BC = .false.
+   use_momentum_outer_BC = .true.
+   
+   use_split_merge_amr = .true.
+   
+   max_timestep = 100000
+   ! max_timestep = 7776000  ! 90 days
+
+   velocity_logT_lower_bound = 0
+   mlt_accel_g_theta = 1
+   max_abs_du_div_cs_for_convection = 0.03d0
+   max_v_div_cs_for_convection = 1d0
+
+   varcontrol_target = 1d-3
+   convergence_ignore_equL_residuals = .true.
+
+/ ! end of controls namelist
+
+&pgstar
+
+/ ! end of pgstar namelist

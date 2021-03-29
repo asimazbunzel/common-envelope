@@ -1,0 +1,34 @@
+
+&controls
+   
+   report_hydro_solver_progress = .false.
+   !hydro_inspectB_flag = .true.
+   !hydro_dump_call_number = 1958
+   !max_model_number = 1787
+
+   use_other_energy = .true.
+
+   mix_factor = 0d0
+   dxdt_nuc_factor = 0d0
+   non_nuc_neu_factor = 0d0
+   eps_nuc_factor = 0d0
+
+   max_timestep = 7776000  ! 90 days
+
+   use_ODE_var_eqn_pairing = .true.      
+   use_dPrad_dm_form_of_T_gradient_eqn = .true.
+   use_compression_outer_BC = .false.
+   use_momentum_outer_BC = .true.
+
+   delta_lgL_limit = 0.02d0
+   delta_lgL_phot_limit = -1
+   varcontrol_target = 1d-3
+   dt_div_min_dr_div_cs_limit = 0.7
+
+   convergence_ignore_equL_residuals = .true.
+   xa_scale = 1d0
+   tiny_corr_coeff_limit = 999999
+   newton_itermin_until_reduce_min_corr_coeff = 999999
+   max_resid_jump_limit = 1d99 ! turn this off until fix residuals
+
+/ ! end of controls namelist
