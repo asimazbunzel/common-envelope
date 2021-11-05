@@ -7,7 +7,7 @@
 &controls
    use_other_wind = .true.
 
-   use_ODE_var_eqn_pairing = .false.      
+   !!use_ODE_var_eqn_pairing = .false.      
    use_dPrad_dm_form_of_T_gradient_eqn = .true.
    use_momentum_outer_BC = .false.
    use_split_merge_amr = .false.

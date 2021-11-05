@@ -5,6 +5,21 @@
 	
 / ! end of star_job namelist
 
+&eos
+
+    read_extra_eos_inlist1 = .true.
+    extra_eos_inlist1_name = 'inlist_project'
+
+/ ! end of eos namelist
+
+
+&kap
+
+    read_extra_kap_inlist1 = .true.
+    extra_kap_inlist1_name = 'inlist_project'
+
+/ ! end of kap namelist
+
 &controls
 
     read_extra_controls_inlist1 = .true.
