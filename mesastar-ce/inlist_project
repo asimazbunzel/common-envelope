@@ -5,16 +5,15 @@
    pause_before_terminate = .true.
 
    ! begin with a pre-main sequence model
-   create_pre_main_sequence_model = .true.
+   !!create_pre_main_sequence_model = .true.
 
    show_log_description_at_start = .false.
    show_net_species_info = .false.
    show_net_reactions_info = .false.
-   show_kap_info = .false.
    show_eqns_and_vars_names = .false.
 
-   history_columns_file = 'column_lists/history_columns.list'
-   profile_columns_file = 'column_lists/profile_columns.list'
+   !!history_columns_file = 'column_lists/history_columns.list'
+   !!profile_columns_file = 'column_lists/profile_columns.list'
 
    ! kappa_lowT_prefix = 'lowT_Freedman11'
 
@@ -34,6 +33,18 @@
 
 / !end of star_job namelist
 
+&eos
+
+/ ! end of eos namelist
+
+
+&kap
+
+   use_Type2_opacities = .true.
+   Zbase =  0.02
+
+/ ! end of kap namelist
+
 &controls
 
   ! starting specifications
@@ -41,9 +52,8 @@
    initial_z = 0.02
 
   ! debugging controls
-   report_hydro_solver_progress = .false.
-   ! hydro_inspectB_flag = .false.
-   ! hydro_dump_call_number = 392
+   report_eos_settings_at_start_of_run = .true.
+   report_solver_progress = .false.
 
   ! atmosphere controls
    atm_option = 'T_tau'
@@ -87,11 +97,10 @@
   ! ending conditions
    max_model_number = 50000
    max_number_retries = 5000
-   max_number_backups = 2000
    retry_limit = 100
 
   ! newton solver controls
-   max_tries = 30
+   solver_max_tries_before_reject = 30
    max_tries_for_retry = 30
    max_tries_after_5_retries = 40
    max_tries_after_10_retries = 40
@@ -100,8 +109,8 @@
    conv_vel_D = 0d0
    use_gold_tolerances = .true.
    gold_iter_for_resid_tol2 = 10
-   gold_newton_iterations_limit = 20
-   newton_iterations_limit = 50
+   gold_solver_iters_timestep_limit = 20
+   solver_iters_timestep_limit = 50
    gold_iter_for_resid_tol3 = 10
    gold_tol_residual_norm3 = 1d-6
    gold_tol_max_residual3 = 1d-3
@@ -112,10 +121,6 @@
 
   ! wind controls (turn on when reaching ZAMS)
    use_other_wind = .false.
-
-  ! eos controls
-   logQ_min_limit = -1d99
-   logQ_limit = 5d0
 
   ! equation controls
    use_dedt_form_of_energy_eqn = .true.
@@ -171,6 +176,5 @@
 
   ! glitches
    okay_to_remove_mixing_singleton = .false.  ! .true.
-   smooth_convective_bdy = .false.
 
 / ! end of controls namelist

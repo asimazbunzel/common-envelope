@@ -279,7 +279,7 @@
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
 
-         call test_suite_startup(id, restart, ierr)
+         call test_suite_startup(s, restart, ierr)
 
          if (.not. restart) then
             call alloc_extra_info(s)
@@ -307,8 +307,8 @@
             if (s% lxtra(lx_found_zams)) then
                s% job% pgstar_flag = .true.
                s% use_other_wind = .true.
-               s% use_Type2_opacities = .true.
-               s% Zbase = s% initial_z
+               s% kap_rq% use_Type2_opacities = .true.
+               s% kap_rq% Zbase = s% initial_z
             end if
             ! if restart during hydro but before CE
             if (s% lxtra(lx_hydro_on)) then
@@ -360,7 +360,6 @@
          character(len=200) :: fname
          integer :: k, k1, k_peak
          real(dp), pointer :: v(:)
-         real(dp) :: Lnuc_div_L
          real(dp) :: tdyn_star, tdyn_core, tdyn
          real(dp) :: m_conv, f_conv
          real(dp) :: vesc, avg_v_div_vesc
@@ -378,20 +377,14 @@
          ! avoid going above MLT velocity limit
          s% max_conv_vel_div_csound = 1d0
 
-         ! Aaron Dotter's ZAMS definition in MIST is:
-         !
-         ! The ZAMS EEP is taken as the first point after the
-         ! H-burning luminosity exceeds 99.9% of the total
-         ! luminosity and before the central H mass fraction has
-         ! fallen below its initial value by 0.0015
-         Lnuc_div_L = s% L_nuc_burn_total / s% L_phot
-         if (Lnuc_div_L > 0.999d0 .and. .not. s% lxtra(lx_found_zams)) then
+         if (abs(log10(abs(s% L_nuc_burn_total * Lsun / s% L(1)))) < 0.005 .and. &
+            .not. s% lxtra(lx_found_zams)) then
             if (s% xtra(x_X_central_initial) - s% center_h1 > 0.015d0) then
                write(*,'(/,a,/)') 'Found ZAMS! Turning winds on'
                s% lxtra(lx_found_zams) = .true.
                s% use_other_wind = .true.
-               s% use_Type2_opacities = .true.
-               s% Zbase = s% initial_z
+               s% kap_rq% use_Type2_opacities = .true.
+               s% kap_rq% Zbase = s% initial_z
                s% use_other_before_struct_burn_mix = .true.
                s% job% pgstar_flag = .true.
                ! save a profile, model and photo when reaching ZAMS
@@ -471,7 +464,6 @@
                   ! force initial velocities to zero to prevent issues in outer layers
                   s% xh(s% i_u,:) = 0d0
                   s% xh_old(s% i_u,:) = 0d0
-                  s% xh_older(s% i_u,:) = 0d0
                   s% generations = 1
                   ! eval dynamic timescale of envelope
                   tdyn_star = 1d0 / sqrt(s% m(1) / (4d0/3d0 * pi * pow3(s% r(1))) * standard_cgrav)
@@ -502,7 +494,7 @@
          extras_start_step = 0
 
          if (s% lxtra(lx_hydro_on)) then
-            write(*,*) 'use_ODE_var_eqn_pairing', s% use_ODE_var_eqn_pairing
+            !!write(*,*) 'use_ODE_var_eqn_pairing', s% use_ODE_var_eqn_pairing
             write(*,*) 'use_dPrad', s% use_dPrad_dm_form_of_T_gradient_eqn
             write(*,*) 'use_dedt', s% use_dedt_form_of_energy_eqn
             write(*,*) 'use_moomentum', s% use_momentum_outer_BC
@@ -548,7 +540,7 @@
             end if
          else
             call star_read_controls(id, 'inlist_hydro_off', ierr)
-            s% Zbase = s% initial_z
+            s% kap_rq% Zbase = s% initial_z
          end if
 
          ! winds off during hydro
@@ -876,7 +868,7 @@
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
 
-         call test_suite_after_evolve(id, ierr)
+         call test_suite_after_evolve(s, ierr)
 
       end subroutine extras_after_evolve
 
