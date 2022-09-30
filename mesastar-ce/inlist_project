@@ -12,9 +12,6 @@
    show_net_reactions_info = .false.
    show_eqns_and_vars_names = .false.
 
-   !!history_columns_file = 'column_lists/history_columns.list'
-   !!profile_columns_file = 'column_lists/profile_columns.list'
-
    ! kappa_lowT_prefix = 'lowT_Freedman11'
 
    ! set_eosPTEH_parameters = .true.
@@ -172,7 +169,7 @@
    min_timestep_limit = 1d-15
    delta_lgTeff_limit = 0.1d0
    delta_lgL_phot_limit = -1d0
-	delta_lgL_limit = -1d0
+   delta_lgL_limit = -1d0
 
   ! glitches
    okay_to_remove_mixing_singleton = .false.  ! .true.
