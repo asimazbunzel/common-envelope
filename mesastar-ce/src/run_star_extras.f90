@@ -27,14 +27,12 @@
       use const_def
       use math_lib
       use chem_def
-      
-      implicit none
 
-      include 'test_suite_extras_def.inc'
+      implicit none
 
       integer :: redo_count
 
-      logical :: dbg = .false.
+      logical :: dbg = .true.
 
       ! lxtra(lx_found_zams) is true if star reaches ZAMS according to Aaron Dotter's definition
       integer, parameter :: lx_found_zams = 1
@@ -84,8 +82,6 @@
 
       ! these routines are called by the standard run_star check_model
       contains
-      
-      include 'test_suite_extras.inc'
 
       subroutine extras_controls(id, ierr)
          integer, intent(in) :: id
@@ -135,7 +131,7 @@
 
       end subroutine extras_controls
 
-      
+
       include 'winds_utils.inc'
 
 
@@ -162,7 +158,7 @@
          nz = s% nz
          s% extra_heat(:) = 0d0
 
-         ! calculate sound speed at the position of the wd
+         ! calculate sound speed at the position of the compact companion (ns/bh/wd)
          k_acc = 1
          cs = s% csound(1)
          do k = 1, nz
@@ -173,7 +169,7 @@
             end if
          end do
 
-         ! relative orbital velocity of WD assuming circular orbit
+         ! relative orbital velocity of compact object assuming circular orbit
          v_circ = orbital_velocity(s% m(k_acc) + m_acc, r_acc)
 
          ! eval bondi accretion radius
@@ -199,7 +195,7 @@
             write(*,'(a40, f26.16)') 'mean_rho', mean_rho
          end if
 
-         ! before evaluating the cross-section, check if wd + bondi_radius are completely inside
+         ! before evaluating the cross-section, check if compact object + bondi_radius are completely inside
          ! the donor star, else calculate the penetration coeff.
          penetration_coeff = eval_penetration(bondi_radius, s% r(1), r_acc)
          if (dbg) write(*,'(a40, f26.16)') 'penetration_coeff', penetration_coeff / Rsun
@@ -213,7 +209,7 @@
          if (dbg) write(*,'(a40, f26.16)') 'cross-section', cross_section_for_drag / pow2(Rsun)
 
          ! get energy to deposit from grav drag which depends on the mach number
-         ! (i.e., on the velocity of the WD wrt the sound speed)
+         ! (i.e., on the velocity of the compact object wrt the sound speed)
          call eval_drag_force(s% m(k_acc), m_acc, cross_section_for_drag, mean_rho, &
             s% dt, r_acc, de, dr)
 
@@ -278,8 +274,6 @@
          ierr = 0
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
-
-         call test_suite_startup(s, restart, ierr)
 
          if (.not. restart) then
             call alloc_extra_info(s)
@@ -385,7 +379,7 @@
                s% use_other_wind = .true.
                s% kap_rq% use_Type2_opacities = .true.
                s% kap_rq% Zbase = s% initial_z
-               s% use_other_before_struct_burn_mix = .true.
+               s% use_other_before_struct_burn_mix = .false.
                s% job% pgstar_flag = .true.
                ! save a profile, model and photo when reaching ZAMS
                write(fname, '(a22)') 'LOGS/profile_zams.data'
@@ -435,7 +429,7 @@
                s% lxtra(lx_ce_on) = .true.
                call star_read_controls(id, 'inlist_ce', ierr)
                call star_set_conv_vel_flag(id, .false., ierr)
-               s% use_other_before_struct_burn_mix = .true.
+               s% use_other_before_struct_burn_mix = .false.
                s% xtra(x_r_acc) = fraction_of_r_donor * s% r(1)
                r_acc = s% xtra(x_r_acc)  ! do this once to avoid issues calling edep
             end if
@@ -497,7 +491,7 @@
             !!write(*,*) 'use_ODE_var_eqn_pairing', s% use_ODE_var_eqn_pairing
             write(*,*) 'use_dPrad', s% use_dPrad_dm_form_of_T_gradient_eqn
             write(*,*) 'use_dedt', s% use_dedt_form_of_energy_eqn
-            write(*,*) 'use_moomentum', s% use_momentum_outer_BC
+            write(*,*) 'use_momentum', s% use_momentum_outer_BC
             write(*,*) 'use_compression', s% use_compression_outer_BC
          end if
 
@@ -553,7 +547,7 @@
 
          ! according to ppisn test_case this flag can be override when reading inlists
          s% use_other_before_struct_burn_mix = .true.
-         
+
          res = keep_going
 
       end subroutine before_struct_burn_mix_for_edep
@@ -789,7 +783,7 @@
 
          ! if not using energy injection, do not evaluate anything
          if (.not. s% use_other_energy) return
-         
+
          nz = s% nz
          going_to_remove_surface = .false.
          if (s% u_flag) then
@@ -867,8 +861,6 @@
          ierr = 0
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
-
-         call test_suite_after_evolve(s, ierr)
 
       end subroutine extras_after_evolve
 
