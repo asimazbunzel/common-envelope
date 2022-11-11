@@ -70,6 +70,9 @@
    x_logical_ctrl(1) = .false.
    ! flag to check if we remove part of donor envelope if reached escape velocity
    x_logical_ctrl(2) = .true.
+   ! flag to define the core of a star based on the He-rich core. in case this is false,
+   ! use a different definition (TO BE DONE)
+   x_logical_ctrl(3) = .true.
    ! how many dynamical timescales to wait until turning CE on, after hydro is on
    x_integer_ctrl(1) = 20
 

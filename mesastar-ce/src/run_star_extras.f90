@@ -77,7 +77,7 @@
 
       real(dp) :: m_acc, r_acc, fraction_of_r_donor
       real(dp) :: energy_multiplier, cs_multiplier
-      logical :: use_modified_HLA, remove_surface
+      logical :: use_modified_HLA, remove_surface, use_he_as_core_boundary
       integer :: num_dyn
 
       ! these routines are called by the standard run_star check_model
@@ -98,6 +98,7 @@
          cs_multiplier = s% x_ctrl(4)
          use_modified_HLA = s% x_logical_ctrl(1)
          remove_surface = s% x_logical_ctrl(2)
+         use_he_as_core_boundary = s% x_logical_ctrl(3)
          num_dyn = s% x_integer_ctrl(1)
          if (dbg) then
             write(*,'(a)')
@@ -326,7 +327,7 @@
          integer, intent(in) :: id
          integer, intent(out) :: ierr
          type(star_info), pointer :: s
-         integer :: k
+         integer :: k, core_k
          real(dp) :: envelope_internal_energy
          real(dp) :: envelope_gravitational_energy
          
@@ -334,14 +335,22 @@
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
 
+         if (use_he_as_core_boundary) then
+            core_k = s% he_core_k
+         else
+            stop 'only He can be used to define core boundary, for now'
+         end if
+
          ! energy budget integrated from the loaded model
          envelope_internal_energy = 0d0
-         do k = 1, s% he_core_k
+         do k = 1, core_k
             envelope_internal_energy = envelope_internal_energy + &
                s% energy(k) * s% dm(k)
          end do
-         envelope_gravitational_energy = - dot_product(s% dm_bar(1:s% he_core_k), &
-            s% cgrav(1:s% he_core_k) * s% m_grav(1:s% he_core_k) /s% r(1:s% he_core_k))
+         envelope_gravitational_energy = - dot_product(s% dm_bar(1:core_k), &
+            s% cgrav(1:core_k) * s% m_grav(1:core_k) /s% r(1:core_k))
+
+         ! binding energy = gravitational + internal energies
          envelope_binding_energy = abs(envelope_internal_energy + envelope_gravitational_energy)
 
       end function envelope_binding_energy
