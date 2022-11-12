@@ -21,6 +21,8 @@
 
    max_surface_cell_dq = 1d-12
 
+   restore_mesh_on_retry = .false.
+
 / ! end of controls namelist
 
 &pgstar

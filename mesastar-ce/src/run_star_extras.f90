@@ -42,6 +42,8 @@
       integer, parameter :: lx_hydro_on = 3
       ! lxtra(lx_ce_on) is true when have_convective_envelope and after n * tdyn of envelope
       integer, parameter :: lx_ce_on = 4
+      ! lxtra(lx_using_bb_bcs) is true if blackbody BCs are used
+      integer, parameter :: lx_using_bb_bcs = 5
 
       ! xtra(x_X_central_initial) is the value of [H1] at start of runs
       integer, parameter :: x_X_central_initial = 1
@@ -282,6 +284,7 @@
             s% lxtra(lx_have_convective_envelope) = .false.
             s% lxtra(lx_hydro_on) = .false.
             s% lxtra(lx_ce_on) = .false.
+            s% lxtra(lx_using_bb_bcs) = .false.
             s% xtra(x_X_central_initial) = s% center_h1
             s% xtra(x_dyn_time) = 0d0
             s% xtra(x_time_start_ce) = 0d0
@@ -317,7 +320,6 @@
                call star_read_controls(id, 'inlist_ce', ierr)
                r_acc = s% xtra(x_r_acc)  ! do this once to avoid issues calling edep
             end if
-            s% use_other_before_struct_burn_mix = .true.
          end if
 
       end subroutine extras_startup
@@ -355,6 +357,37 @@
 
       end function envelope_binding_energy
 
+      subroutine convective_envelope(id, f_conv, ierr)
+         integer, intent(in) :: id
+         integer, intent(inout) :: ierr
+         real(dp), intent(out) :: f_conv
+         type (star_info), pointer :: s
+         real(dp) :: m_conv
+         integer :: k, core_k
+
+         ierr = 0
+         call star_ptr(id, s, ierr)
+         if (ierr /= 0) return
+         
+         if (use_he_as_core_boundary) then
+            core_k = s% he_core_k
+         else
+            stop 'only He can be used to define core boundary, for now'
+         end if
+
+         m_conv = 0d0
+         do k=1, core_k
+            if (s% mixing_type(k) == convective_mixing) m_conv = m_conv + s% dm(k)
+         end do
+
+         m_conv = m_conv / Msun
+         f_conv = m_conv / s% star_mass
+
+         write(*,'(a40, f26.16)') 'convective env mass', m_conv
+         write(*,'(a40, f26.16)') 'fract of conv env', f_conv
+
+      end subroutine convective_envelope
+
 
       integer function extras_start_step(id)
          integer, intent(in) :: id
@@ -363,14 +396,19 @@
          character(len=200) :: fname
          integer :: k, k1, k_peak
          real(dp), pointer :: v(:)
+         real(dp) :: f_conv
          real(dp) :: tdyn_star, tdyn_core, tdyn
-         real(dp) :: m_conv, f_conv
          real(dp) :: vesc, avg_v_div_vesc
 
          ierr = 0
          call star_ptr(id, s, ierr)
          if (ierr /= 0) return
+         
+         extras_start_step = 0
 
+         ! check type of velocity used
+         ! v(k) is velocity at outer edge of cell k
+         ! u(k) is velocity at center of cell k
          if (s% u_flag) then
             v => s% u
          else
@@ -380,6 +418,11 @@
          ! avoid going above MLT velocity limit
          s% max_conv_vel_div_csound = 1d0
 
+         ! following PPISN test case, this is to ensure BCs are right
+         s% use_other_before_struct_burn_mix = .true.
+
+
+         ! zams is reached, turn winds on
          if (abs(log10(abs(s% L_nuc_burn_total * Lsun / s% L(1)))) < 0.005 .and. &
             .not. s% lxtra(lx_found_zams)) then
             if (s% xtra(x_X_central_initial) - s% center_h1 > 0.015d0) then
@@ -388,7 +431,6 @@
                s% use_other_wind = .true.
                s% kap_rq% use_Type2_opacities = .true.
                s% kap_rq% Zbase = s% initial_z
-               s% use_other_before_struct_burn_mix = .false.
                s% job% pgstar_flag = .true.
                ! save a profile, model and photo when reaching ZAMS
                write(fname, '(a22)') 'LOGS/profile_zams.data'
@@ -400,7 +442,8 @@
             end if
          end if
 
-         
+
+         ! search for escape velocities when CE is on
          if (s% lxtra(lx_ce_on)) then
             ! check if during CE we have a shock and reduce max timestep
             k_peak = maxloc(v(1:s% nz), dim=1)
@@ -438,24 +481,22 @@
                s% lxtra(lx_ce_on) = .true.
                call star_read_controls(id, 'inlist_ce', ierr)
                call star_set_conv_vel_flag(id, .false., ierr)
-               s% use_other_before_struct_burn_mix = .false.
                s% xtra(x_r_acc) = fraction_of_r_donor * s% r(1)
                r_acc = s% xtra(x_r_acc)  ! do this once to avoid issues calling edep
             end if
          end if
 
 
-         ! search for convective envelope condition
+         ! search for convective envelope condition to trigger hydro on
          if (.not. s% lxtra(lx_have_convective_envelope)) then
             if (s% center_h1 < 1d-4) then
-               m_conv = 0d0
-               do k=1, s% he_core_k
-                  if (s% mixing_type(k) == convective_mixing) m_conv = m_conv + s% dm(k)
-               end do
-               m_conv = m_conv / Msun
-               f_conv = m_conv / s% star_mass
-               write(*,'(a40, f26.16)') 'convective env mass', m_conv
-               write(*,'(a40, f26.16)') 'fract of conv env', f_conv
+               call convective_envelope(id, f_conv, ierr)
+               if (ierr /= 0) then
+                  write(*,'(a)') 'error computing convective envelope'
+                  return
+               end if
+
+               ! consider convective envelope when m_conv / m_star > 0.2
                if (f_conv > 0.2d0) then
                   write(*,'(/,a,/)') 'convection dominates in more than 20% of the mass of entire star. turning hydro on'
                   s% lxtra(lx_have_convective_envelope) = .true.
@@ -490,19 +531,13 @@
             end if
          end if
 
-         if (s% use_other_before_struct_burn_mix) then
+         ! hydro on, let's check max velocities
+         if (s% lxtra(lx_hydro_on) .and. .not. s% lxtra(lx_ce_on)) &
+            write(*,*) 'max velocity with Riemann hydro on', maxval(abs(s% xh(s% i_u, 1:s% nz)))/1e5
+
+         ! always check for correct BCs
+         if (s% use_other_before_struct_burn_mix) &
             call before_struct_burn_mix_for_edep(id, s% dt, extras_start_step)
-         end if
-
-         extras_start_step = 0
-
-         if (s% lxtra(lx_hydro_on)) then
-            !!write(*,*) 'use_ODE_var_eqn_pairing', s% use_ODE_var_eqn_pairing
-            write(*,*) 'use_dPrad', s% use_dPrad_dm_form_of_T_gradient_eqn
-            write(*,*) 'use_dedt', s% use_dedt_form_of_energy_eqn
-            write(*,*) 'use_momentum', s% use_momentum_outer_BC
-            write(*,*) 'use_compression', s% use_compression_outer_BC
-         end if
 
    
       end function extras_start_step
@@ -515,7 +550,8 @@
          integer :: ierr
          type (star_info), pointer :: s
          real(dp), pointer :: v(:)
-         integer :: k_peak
+         real(dp) :: v_esc
+         integer :: k, k_peak
 
          ierr = 0
          call star_ptr(id, s, ierr)
@@ -529,6 +565,7 @@
 
          if (s% lxtra(lx_hydro_on)) then
             call star_read_controls(id, 'inlist_hydro_on', ierr)
+
             if (s% lxtra(lx_ce_on)) then
                call star_read_controls(id, 'inlist_ce', ierr)
                k_peak = maxloc(v(1:s% nz), dim=1)
@@ -540,19 +577,67 @@
                   s% use_compression_outer_BC = .true.
                   s% use_momentum_outer_BC = .false.
                end if
+            else
+              s% max_timestep = 1d99
             end if
+
+            ! check for very high velocities to cap them off
+            do k=1, s% nz
+               v_esc = sqrt(2d0 * s% cgrav(k) * s% m(k) / s% r(k))
+               s% xh(s% i_u, k) = min(s% xh(s% i_u,k), 1.25 * v_esc)
+               s% u(k) = s% xh(s% i_u, k)
+            end do
+
+            if (s% xh(s% i_u, 1) >= 1.25 * sqrt(2d0 * s% cgrav(k) * s% m(1) / s% r(1))) then
+               s% use_fixed_vsurf_outer_BC = .true.
+               s% use_momentum_outer_BC = .false.
+               s% fixed_vsurf = sqrt(2d0 * s% cgrav(k) * s% m(1) / s% r(1))
+            else
+               if (s% lxtra(lx_using_bb_bcs)) then
+                  s% use_fixed_vsurf_outer_BC = .true.
+                  s% use_momentum_outer_BC = .false.
+                  s% fixed_vsurf = sqrt(2d0 * s% cgrav(k) * s% m(1) / s% r(1))
+               else
+                  s% use_fixed_vsurf_outer_BC = .false.
+                  s% use_momentum_outer_BC = .true.
+               end if
+            end if 
+
+            ! from ppisn
+            if (maxval(abs(s% xh(s% i_u,:s% nz))) < 2d7) then
+               s% dt_div_min_dr_div_cs_limit = 2d1
+            else
+               s% dt_div_min_dr_div_cs_limit = 3d0
+            end if
+
+            ! blackbody BCs, only used if R is very very big
+            if (s% lxtra(lx_using_bb_bcs)) then
+               stop 'need to code this part !'
+            else
+               s% use_atm_PT_at_center_of_surface_cell = .false.
+               s% atm_option = 'T_tau'
+               s% atm_T_tau_relation = 'Eddington'
+               s% atm_T_tau_opacity = 'fixed'
+               s% tau_factor = 1d0
+               s% force_tau_factor = 1d0
+               s% delta_lgL_phot_limit = 0.25d0
+               s% delta_lgL_phot_limit_L_min = -100
+               s% delta_lgL_limit_L_min = -100
+            end if
+
+            if (s% use_fixed_vsurf_outer_BC) &
+               write(*,*) "Using fixed_vsurf", s% fixed_vsurf/1e5
+
+
          else
+            s% max_timestep = 1d99
             call star_read_controls(id, 'inlist_hydro_off', ierr)
-            s% kap_rq% Zbase = s% initial_z
+            !! s% kap_rq% Zbase = s% initial_z
          end if
 
          ! winds off during hydro
-         if (s% lxtra(lx_hydro_on)) then
+         if (s% lxtra(lx_hydro_on)) &
             s% use_other_wind = .false.
-            s% tau_factor = 1
-            s% force_tau_factor = 1
-            s% tau_base = 1d-4
-         end if
 
          ! according to ppisn test_case this flag can be override when reading inlists
          s% use_other_before_struct_burn_mix = .true.
